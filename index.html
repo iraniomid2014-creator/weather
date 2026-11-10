@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Skyview — پیش‌بینی هوا</title>
+  <meta name="description" content="پیش‌بینی ساعتی و ۱۴ روزه، جزئیات هوا و کیفیت هوا — Hourly and 14-day weather forecast, details and air quality">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://upload.wikimedia.org; font-src 'self'; connect-src 'self' https://api.open-meteo.com https://air-quality-api.open-meteo.com https://geocoding-api.open-meteo.com https://nominatim.openstreetmap.org https://en.wikipedia.org https://fa.wikipedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="theme-color" content="#1f6fb5">
+  <meta name="application-name" content="Skyview">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Skyview">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preload" href="fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/app.css">
+  <script src="js/boot.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main" data-i18n="a11y.skip">پرش به محتوا</a>
+
+  <div class="sky sky-clear-day" id="sky" aria-hidden="true"></div>
+  <div class="bg-photo" id="bg-photo" aria-hidden="true"></div>
+  <div class="bg-shade" aria-hidden="true"></div>
+  <div class="clouds" id="clouds" aria-hidden="true"><i></i><i></i><i></i></div>
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <div class="flash" id="flash" aria-hidden="true"></div>
+
+  <div class="shell">
+    <header class="topbar" id="topbar">
+      <div class="wrap">
+        <button type="button" class="place-btn" data-action="open-places" aria-haspopup="dialog" data-i18n-attr="aria-label:pl.change">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-pin"/></svg>
+          <span class="place-txt">
+            <span class="place-name" id="place-name">…</span>
+            <span class="place-sub" id="place-sub" hidden></span>
+          </span>
+          <svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-chevDown"/></svg>
+        </button>
+        <div class="top-actions">
+          <button type="button" class="icon-btn" id="btn-fav" data-action="toggle-fav-current" aria-pressed="false">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-star"/></svg>
+          </button>
+          <button type="button" class="icon-btn" id="btn-refresh" data-action="refresh" data-i18n-attr="aria-label:a11y.refresh;title:a11y.refresh">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-refresh"/></svg>
+          </button>
+          <button type="button" class="icon-btn" data-action="open-settings" aria-haspopup="dialog" data-i18n-attr="aria-label:a11y.settings;title:a11y.settings">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-settings"/></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="wrap"><div class="banners" id="banners"></div></div>
+
+    <main id="main" class="wrap" tabindex="-1">
+      <h1 class="sr-only" data-i18n="app.name">Skyview</h1>
+      <section class="sect" id="s-hourly"></section>
+      <section class="sect" id="s-daily" hidden></section>
+      <section class="sect" id="s-accs" hidden></section>
+    </main>
+
+    <footer class="foot" id="foot"></footer>
+  </div>
+
+  <dialog class="sheet" id="dlg-places" aria-labelledby="dlg-places-t">
+    <div class="sheet-h">
+      <h2 id="dlg-places-t" data-i18n="pl.title">مکان‌ها</h2>
+      <button type="button" class="icon-btn" data-action="close-dialog" data-i18n-attr="aria-label:common.close">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-close"/></svg>
+      </button>
+    </div>
+    <div class="sheet-b">
+      <form id="place-form" role="search" autocomplete="off">
+        <div class="search-box">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-search"/></svg>
+          <input id="place-q" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="place-results"
+                 inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="80"
+                 data-i18n-attr="placeholder:pl.search;aria-label:pl.searchLabel">
+        </div>
+      </form>
+      <p class="hint" id="place-msg" role="status" aria-live="polite"></p>
+      <button type="button" class="btn ghost wide" data-action="locate-me">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-locate"/></svg>
+        <span data-i18n="pl.myLocation">استفاده از موقعیت من</span>
+      </button>
+      <ul class="plist" id="place-results" role="listbox" hidden data-i18n-attr="aria-label:pl.results"></ul>
+      <section id="place-favs" hidden>
+        <h3 data-i18n="pl.favorites">ذخیره‌شده‌ها</h3>
+        <ul class="plist" id="fav-list"></ul>
+      </section>
+      <section id="place-recents" hidden>
+        <h3 data-i18n="pl.recents">اخیر</h3>
+        <ul class="plist" id="recent-list"></ul>
+      </section>
+    </div>
+  </dialog>
+
+  <dialog class="sheet" id="dlg-settings" aria-labelledby="dlg-settings-t">
+    <div class="sheet-h">
+      <h2 id="dlg-settings-t" data-i18n="set.title">تنظیمات</h2>
+      <button type="button" class="icon-btn" data-action="close-dialog" data-i18n-attr="aria-label:common.close">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-close"/></svg>
+      </button>
+    </div>
+    <div class="sheet-b" id="settings-body"></div>
+  </dialog>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <p style="padding:24px;text-align:center;color:#fff;background:#071524;position:fixed;inset:0;z-index:999">
+      برای اجرای Skyview باید جاوااسکریپت فعال باشد.<br>Skyview needs JavaScript to run.
+    </p>
+  </noscript>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
